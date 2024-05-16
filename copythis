@@ -1,0 +1,149 @@
+StartEvent = game.ReplicatedStorage:WaitForChild("StartEvent")
+EndEvent = game.ReplicatedStorage:WaitForChild("EndEvent")
+
+local Players = game:GetService("Players")
+local RS = game:GetService("RunService")
+
+local LogRoll = workspace.LogRoll
+local ProximityPrompt = LogRoll.start.ProximityPrompt
+local Log = LogRoll.log
+
+
+
+local started = false
+
+local survivors = {}
+
+local Base = workspace.Baseplate
+local LogAttachment = Instance.new("Attachment")
+local BaseAttachment = Instance.new("Attachment")
+LogAttachment.Parent = Log
+BaseAttachment.Parent = Base
+LogAttachment.WorldCFrame = Log.CFrame
+BaseAttachment.WorldCFrame = Log.CFrame
+
+local motor = Instance.new("HingeConstraint")
+motor.Attachment1 = LogAttachment
+motor.Attachment0 = BaseAttachment
+motor.ActuatorType = "Motor"
+
+motor.MotorMaxTorque = 100000000000000
+motor.Parent = Base
+
+--unanchor the log so it can be moved by the motor once the game starts
+Log.Anchored = false
+
+--changes the motor's speed at random directions and intervals while the game is running
+local function randomMotion()
+	--set starting speed
+	local speed = 1
+
+	--set the amount the speed increases at each interval
+	--NOTE: The higher this value, the harder the game will be
+	local speedIncrease = 0.2
+
+	--loops as the game goes
+	while started do
+		--randomly set direction to 1 or -1
+		local direction = (math.random(0, 1) - 0.5) * 2
+
+		--set the motor's angular velocity to the current speed + a random number between 0 and 1
+		--modified by direction
+		motor.AngularVelocity = direction * (speed + math.random())
+
+		--wait a random interval between 1 and 5 seconds
+		wait(math.random(1, 5))
+
+		--increase speed
+		speed += speedIncrease
+	end
+	--set the motor's angular velocity to 0 when the game ends
+	motor.AngularVelocity = 0
+end
+
+--starts the game
+local function startGame()
+	--set the survivors table to all players in the game
+	survivors = Players:GetPlayers()
+
+	--fire the StartEvent
+	StartEvent:FireAllClients()
+
+	--go through all the players
+	for i, player in Players:GetPlayers() do
+		local hum = player.Character.HumanoidRootPart
+
+		--spread the players out 20 studs above the log
+		--NOTE: adjust the Vector3 if the log is lying on the Z axis instead of the X axis
+		hum.Position = Log.Position + Vector3.new(4 * i, 20, 0)
+
+		--anchor them during the countdown
+		hum.Anchored = true
+	end
+	wait (3)
+
+	--unanchor all the players
+	for i, player in survivors do
+		player.Character.HumanoidRootPart.Anchored = false
+	end
+	started = true
+
+	--start the random motion
+	randomMotion()
+end
+
+--start the game when the start button is triggered
+ProximityPrompt.Triggered:Connect(startGame)
+
+
+
+--fires the end event when the game is over and adds sparkles to the winner
+local function endGame(Player)
+	started = false
+
+	--fire the EndEvent for every player, with the winner as an argument
+	EndEvent:FireAllClients(Player)
+
+	--check if there actually is a winner
+	if Player then
+		--add sparkles to the winner
+		local sparkles = Instance.new("Sparkles")
+		sparkles.Parent = Player.Character.HumanoidRootPart
+		wait(5)
+
+		--remove the sparkles
+		sparkles:Destroy()
+	end
+end
+
+--eliminates a player based on their number in the table
+function eliminatePlayer(playerNum)
+
+	--remove that player from the survivors table
+	table.remove(survivors, playerNum)
+
+	--check if there is only 1 survivor in the game (that player wins)
+	if #survivors == 1 then
+		endGame(survivors[1])
+
+		--check if there are 0 survivors in the game (no player wins)
+	elseif #survivors < 1 then
+		endGame(nil)
+	end
+end
+
+--checks if a player needs to be eliminated
+function checkSurvivors()
+	if started then
+		--go through all the players, checking if they fell off the log
+		for i, player in survivors do
+			--check if their Y position is too low
+			if player.Character.HumanoidRootPart.Position.Y < 5 then
+				eliminatePlayer(i)
+			end
+		end
+	end
+end
+
+--check for survivors every tick
+RS.Heartbeat:Connect(checkSurvivors)
