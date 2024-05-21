@@ -4,9 +4,10 @@ EndEvent = game.ReplicatedStorage:WaitForChild("EndEvent")
 local Players = game:GetService("Players")
 local RS = game:GetService("RunService")
 
-local LogRoll = workspace.LogRoll
-local ProximityPrompt = LogRoll.start.ProximityPrompt
-local Log = LogRoll.log
+-- This is where we have to make our own code!
+local LogRoll = -
+local ProximityPrompt = --
+local Log = --
 
 
 
